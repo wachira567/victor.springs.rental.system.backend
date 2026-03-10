@@ -1,0 +1,25 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+fastapi = {extras = ["standard"], version = "*"}
+sqlalchemy = "*"
+alembic = "*"
+pydantic = "*"
+python-jose = {extras = ["cryptography"], version = "*"}
+passlib = {extras = ["bcrypt"], version = "*"}
+python-multipart = "*"
+apscheduler = "*"
+psycopg2-binary = "*"
+python-dotenv = "*"
+google-auth = "*"
+slowapi = "*"
+requests = "*"
+bcrypt = "<4.0.0"
+
+[dev-packages]
+
+[requires]
+python_version = "3.8"
