@@ -18,6 +18,10 @@ google-auth = "*"
 slowapi = "*"
 requests = "*"
 bcrypt = "<4.0.0"
+uvicorn = "*"
+
+[scripts]
+start = "uvicorn app:app --reload --port 8000"
 
 [dev-packages]
 

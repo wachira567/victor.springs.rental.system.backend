@@ -283,9 +283,39 @@ def delete_bill_type(bt_id: int, db: Session = Depends(get_db), current_user: mo
 # PAYMENTS
 # ==============================================================================
 @router.get("/payments", response_model=List[schemas.PaymentOut])
-def get_payments(db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
-    payments = db.query(models.Payment).all()
-    return payments
+def get_payments(
+    response: Response,
+    page: int = 1,
+    limit: int = 50,
+    db: Session = Depends(get_db), 
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    offset = (page - 1) * limit
+    total_count = db.query(models.Payment).count()
+    response.headers["X-Total-Count"] = str(total_count)
+    response.headers["Access-Control-Expose-Headers"] = "X-Total-Count"
+
+    payments = db.query(models.Payment).options(
+        joinedload(models.Payment.lease).joinedload(models.Lease.tenant),
+        joinedload(models.Payment.lease).joinedload(models.Lease.unit).joinedload(models.Unit.property)
+    ).order_by(models.Payment.payment_date.desc()).offset(offset).limit(limit).all()
+    
+    # Enhance payments with lease details
+    enhanced_payments = []
+    for p in payments:
+        pd = schemas.PaymentOut.model_validate(p).model_dump()
+        
+        if p.lease:
+            if p.lease.tenant:
+                pd["tenant_name"] = p.lease.tenant.full_name
+            if p.lease.unit:
+                pd["unit_number"] = p.lease.unit.unit_number
+                if p.lease.unit.property:
+                    pd["property_name"] = p.lease.unit.property.name
+                    
+        enhanced_payments.append(pd)
+        
+    return enhanced_payments
 
 @router.post("/payments", response_model=schemas.PaymentOut, status_code=status.HTTP_201_CREATED)
 def create_payment(payment: schemas.PaymentCreate, 
@@ -298,6 +328,52 @@ def create_payment(payment: schemas.PaymentCreate,
     db.commit()
     db.refresh(new_payment)
     return new_payment
+
+# --- Meter Readings ---
+
+@router.get("/meter-readings", response_model=List[schemas.MeterReadingOut])
+def get_meter_readings(
+    response: Response,
+    page: int = 1,
+    limit: int = 50,
+    db: Session = Depends(get_db), 
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    offset = (page - 1) * limit
+    total_count = db.query(models.MeterReading).count()
+    response.headers["X-Total-Count"] = str(total_count)
+    response.headers["Access-Control-Expose-Headers"] = "X-Total-Count"
+
+    readings = db.query(models.MeterReading).options(
+        joinedload(models.MeterReading.unit).joinedload(models.Unit.property),
+        joinedload(models.MeterReading.unit).joinedload(models.Unit.leases).joinedload(models.Lease.tenant)
+    ).order_by(models.MeterReading.reading_date.desc()).offset(offset).limit(limit).all()
+    
+    enhanced_readings = []
+    for r in readings:
+        rd = schemas.MeterReadingOut.model_validate(r).model_dump()
+        if r.unit:
+            rd["unit_number"] = r.unit.unit_number
+            if r.unit.property:
+                rd["property_name"] = r.unit.property.name
+                
+            # Find the active lease from the joined leases
+            active_lease = next((l for l in r.unit.leases if l.status == "ACTIVE"), None)
+            if active_lease and active_lease.tenant:
+                rd["tenant_name"] = active_lease.tenant.full_name
+                
+        enhanced_readings.append(rd)
+        
+    return enhanced_readings
+
+@router.post("/meter-readings", response_model=schemas.MeterReadingOut, status_code=status.HTTP_201_CREATED)
+def create_meter_reading(reading: schemas.MeterReadingCreate, db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
+    new_reading = models.MeterReading(**reading.model_dump())
+    new_reading.created_by_id = current_user.id
+    db.add(new_reading)
+    db.commit()
+    db.refresh(new_reading)
+    return new_reading
 
 # ==============================================================================
 # EXPENDITURES

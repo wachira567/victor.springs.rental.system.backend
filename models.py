@@ -189,3 +189,17 @@ class Expenditure(Base, AuditMixin):
     date = Column(Date, default=datetime.utcnow)
 
     property = relationship("Property")
+
+class MeterReading(Base, AuditMixin):
+    __tablename__ = "meter_readings"
+
+    id = Column(Integer, primary_key=True, index=True)
+    unit_id = Column(Integer, ForeignKey('units.id'), nullable=False)
+    previous_reading = Column(Numeric(10, 2), nullable=False)
+    current_reading = Column(Numeric(10, 2), nullable=False)
+    consumption = Column(Numeric(10, 2), nullable=False)
+    rate = Column(Numeric(10, 2), nullable=False)
+    total_charge = Column(Numeric(10, 2), nullable=False)
+    reading_date = Column(Date, nullable=False)
+
+    unit = relationship("Unit")

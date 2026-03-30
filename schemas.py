@@ -169,6 +169,11 @@ class PaymentOut(BaseModel):
     payment_method: Optional[str] = None
     reference_number: Optional[str] = None
     payment_date: datetime
+    
+    # Joined data
+    tenant_name: Optional[str] = None
+    unit_number: Optional[str] = None
+    property_name: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -202,3 +207,30 @@ class Token(BaseModel):
 class GoogleLogin(BaseModel):
     token: str
     role: Optional[str] = "tenant"
+
+# --- Meter Readings ---
+class MeterReadingCreate(BaseModel):
+    unit_id: int
+    previous_reading: Decimal
+    current_reading: Decimal
+    consumption: Decimal
+    rate: Decimal
+    total_charge: Decimal
+    reading_date: date
+
+class MeterReadingOut(BaseModel):
+    id: int
+    unit_id: int
+    previous_reading: Decimal
+    current_reading: Decimal
+    consumption: Decimal
+    rate: Decimal
+    total_charge: Decimal
+    reading_date: date
+    # Joined data
+    unit_number: Optional[str] = None
+    property_name: Optional[str] = None
+    tenant_name: Optional[str] = None
+
+    class Config:
+        from_attributes = True
