@@ -9,6 +9,16 @@ class AuditMixin:
     created_by_id = Column(Integer, ForeignKey('users.id'), nullable=True)
     updated_by_id = Column(Integer, ForeignKey('users.id'), nullable=True)
 
+class BankTransaction(Base, AuditMixin):
+    __tablename__ = "bank_transactions"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    date = Column(Date, nullable=False, default=datetime.utcnow)
+    type = Column(String, nullable=False) # 'DEPOSIT' or 'WITHDRAWAL'
+    amount = Column(Numeric(10, 2), nullable=False)
+    reference = Column(String, nullable=True)
+    notes = Column(Text, nullable=True)
+
 class User(Base, AuditMixin):
     __tablename__ = "users"
 
@@ -20,6 +30,7 @@ class User(Base, AuditMixin):
     role = Column(String(50), nullable=False, default="tenant")
     is_approved = Column(Boolean, default=False)
     is_active = Column(Boolean, default=True)
+    permissions = Column(JSON, nullable=True) # List of strings or dict of toggles
 
 class AuditLog(Base):
     __tablename__ = "audit_logs"
@@ -32,6 +43,8 @@ class AuditLog(Base):
     old_data = Column(JSON, nullable=True)
     new_data = Column(JSON, nullable=True)
     timestamp = Column(DateTime, default=datetime.utcnow)
+
+    user = relationship("User")
 
 class BillType(Base):
     __tablename__ = "bill_types"
@@ -82,6 +95,8 @@ class Unit(Base, AuditMixin):
     unit_type = Column(String(100))
     market_rent = Column(Numeric(10, 2), nullable=False)
     is_vacant = Column(Boolean, default=True)
+    utilities = Column(JSON, default=list)  # e.g., [{"name": "Garbage", "amount": 500, "frequency": "monthly"}]
+    meter_number = Column(String(50), nullable=True)  # Current active meter number
 
     property = relationship("Property", back_populates="units")
     leases = relationship("Lease", back_populates="unit")
@@ -150,6 +165,7 @@ class SmsTemplate(Base, AuditMixin):
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(100), nullable=False)
+    code = Column(String(50), nullable=True) # e.g., PAYMENT, RF
     content = Column(Text, nullable=False)
 
 class SmsSchedule(Base, AuditMixin):
@@ -203,3 +219,44 @@ class MeterReading(Base, AuditMixin):
     reading_date = Column(Date, nullable=False)
 
     unit = relationship("Unit")
+
+
+class LandlordRemittance(Base, AuditMixin):
+    __tablename__ = "landlord_remittances"
+
+    id = Column(Integer, primary_key=True, index=True)
+    landlord_id = Column(Integer, ForeignKey('landlords.id'), nullable=False)
+    property_id = Column(Integer, ForeignKey('properties.id'), nullable=False)
+    payment_mode = Column(String(50))
+    ref_number = Column(String(100))
+    remarks = Column(Text, nullable=True)
+    amount = Column(Numeric(10, 2), nullable=False)
+    date = Column(Date, default=datetime.utcnow)
+
+    landlord = relationship("Landlord")
+    property = relationship("Property")
+
+class Attribute(Base, AuditMixin):
+    __tablename__ = "attributes"
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(100), unique=True, nullable=False)
+
+class ExpenseCategory(Base, AuditMixin):
+    __tablename__ = "expense_categories"
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(100), unique=True, nullable=False)
+
+class BankName(Base, AuditMixin):
+    __tablename__ = "bank_names"
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(100), unique=True, nullable=False)
+
+class Bank(Base, AuditMixin):
+    __tablename__ = "banks"
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(150), nullable=False)
+    branch_name = Column(String(100), nullable=True)
+    account_number = Column(String(100), nullable=False)
+    bank_name_id = Column(Integer, ForeignKey('bank_names.id'), nullable=False)
+
+    bank_name = relationship("BankName")

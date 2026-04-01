@@ -1,0 +1,303 @@
+{
+    "Dashboard": {
+        "url": "https://tolet.co.ke/home#idA101",
+        "subpages": [
+            {
+                "name": "Analytics Dashboard",
+                "url": "https://tolet.co.ke/home"
+            }
+        ]
+    },
+    "Configurations": {
+        "url": "https://tolet.co.ke/home#idA102",
+        "subpages": [
+            {
+                "name": "Attributes",
+                "url": "https://tolet.co.ke/attributes"
+            },
+            {
+                "name": "Property Expenses",
+                "url": "https://tolet.co.ke/expenditures"
+            },
+            {
+                "name": "Service Bills",
+                "url": "https://tolet.co.ke/serviceOptions"
+            },
+            {
+                "name": "Bank Names",
+                "url": "https://tolet.co.ke/bankNames"
+            },
+            {
+                "name": "Banks",
+                "url": "https://tolet.co.ke/banks"
+            },
+            {
+                "name": "Event Messages",
+                "url": "https://tolet.co.ke/eventMessages"
+            }
+        ]
+    },
+    "Communication": {
+        "url": "https://tolet.co.ke/home#idA103",
+        "subpages": [
+            {
+                "name": "Event Messages",
+                "url": "https://tolet.co.ke/eventMessages"
+            },
+            {
+                "name": "Customer Messages",
+                "url": "https://tolet.co.ke/customerMessages"
+            }
+        ]
+    },
+    "CRM": {
+        "url": "https://tolet.co.ke/home#idA104",
+        "subpages": [
+            {
+                "name": "All Landlords",
+                "url": "https://tolet.co.ke/landlords"
+            },
+            {
+                "name": "All Tenants",
+                "url": "https://tolet.co.ke/tenants"
+            },
+            {
+                "name": "All Staff",
+                "url": "https://tolet.co.ke/staff"
+            },
+            {
+                "name": "All Customers",
+                "url": "https://tolet.co.ke/customers"
+            }
+        ]
+    },
+    "Property Manager": {
+        "url": "https://tolet.co.ke/home#idA105",
+        "subpages": [
+            {
+                "name": "All Properties",
+                "url": "https://tolet.co.ke/properties"
+            },
+            {
+                "name": "Property Attributes",
+                "url": "https://tolet.co.ke/propertyUnitAttributes"
+            },
+            {
+                "name": "Property Expenditures",
+                "url": "https://tolet.co.ke/propertyExpenditures"
+            },
+            {
+                "name": "Property Commissions",
+                "url": "https://tolet.co.ke/propertyCommissions"
+            },
+            {
+                "name": "Property Recurring Expenditures",
+                "url": "https://tolet.co.ke/propertyRecurringExpenditures"
+            }
+        ]
+    },
+    "Lease Manager": {
+        "url": "https://tolet.co.ke/home#idA106",
+        "subpages": [
+            {
+                "name": "All Leases",
+                "url": "https://tolet.co.ke/leases"
+            },
+            {
+                "name": "Terminated Leases",
+                "url": "https://tolet.co.ke/terminatedLeases"
+            }
+        ]
+    },
+    "Payments & Bills": {
+        "url": "https://tolet.co.ke/home#idA107",
+        "subpages": [
+            {
+                "name": "All Bills",
+                "url": "https://tolet.co.ke/billDetails"
+            },
+            {
+                "name": "Cash/Bank Payments",
+                "url": "https://tolet.co.ke/cashPayments"
+            },
+            {
+                "name": "Processed Mpesa Payments",
+                "url": "https://tolet.co.ke/payments"
+            },
+            {
+                "name": "UnProcessed Mpesa Payments",
+                "url": "https://tolet.co.ke/unprocessedPayments"
+            },
+            {
+                "name": "CrossCheck Payments",
+                "url": "https://tolet.co.ke/crossCheckTrans"
+            },
+            {
+                "name": "Landlord Remittances",
+                "url": "https://tolet.co.ke/landlordRemittances"
+            },
+            {
+                "name": "Deposit Refunds",
+                "url": "https://tolet.co.ke/depositRefunds"
+            }
+        ]
+    },
+    "Reports": {
+        "url": "https://tolet.co.ke/home#idA108",
+        "subpages": [
+            {
+                "name": "Tenant Statement",
+                "url": "https://tolet.co.ke/tenantStatement"
+            },
+            {
+                "name": "Individual Unit Tenant Stment",
+                "url": "https://tolet.co.ke/tenantStatement2"
+            },
+            {
+                "name": "Tenant Arrears",
+                "url": "https://tolet.co.ke/tenantArrears"
+            },
+            {
+                "name": "Property Statement",
+                "url": "https://tolet.co.ke/plotStatement"
+            },
+            {
+                "name": "Landlord Property Report",
+                "url": "https://tolet.co.ke/rent-property-statement"
+            },
+            {
+                "name": "Rent Summary Report",
+                "url": "https://tolet.co.ke/rentSummaryReport"
+            },
+            {
+                "name": "Landlord Summary Report",
+                "url": "https://tolet.co.ke/landlordStatement"
+            },
+            {
+                "name": "Landlord Summary Report 2",
+                "url": "https://tolet.co.ke/landPStatement"
+            },
+            {
+                "name": "Landlord Plot Report",
+                "url": "https://tolet.co.ke/landlord-plot-report"
+            },
+            {
+                "name": "Landlord Dues",
+                "url": "https://tolet.co.ke/dues"
+            },
+            {
+                "name": "Daily Analysis Report",
+                "url": "https://tolet.co.ke/dailyAnalysis"
+            },
+            {
+                "name": "Rent Collection Report",
+                "url": "https://tolet.co.ke/rentpay"
+            },
+            {
+                "name": "Daily Collection Report",
+                "url": "https://tolet.co.ke/dailyPayments"
+            },
+            {
+                "name": "Property Expenditure Report",
+                "url": "https://tolet.co.ke/propertyExpenditureReport"
+            },
+            {
+                "name": "Tenant Advance Payments",
+                "url": "https://tolet.co.ke/tenantAdvancePayments"
+            },
+            {
+                "name": "Other Bills Report",
+                "url": "https://tolet.co.ke/otherBills"
+            },
+            {
+                "name": "Vacant Houses",
+                "url": "https://tolet.co.ke/vacantUnits"
+            },
+            {
+                "name": "Commission Report",
+                "url": "https://tolet.co.ke/totalCommission"
+            },
+            {
+                "name": "Bank Statement Report",
+                "url": "https://tolet.co.ke/bankStatement"
+            },
+            {
+                "name": "Deposit Refunds Report",
+                "url": "https://tolet.co.ke/depositReport"
+            },
+            {
+                "name": "Landlord Summary Report 3",
+                "url": "https://tolet.co.ke/billedLandlordStatement"
+            }
+        ]
+    },
+    "Property Sales": {
+        "url": "https://tolet.co.ke/home#idA109",
+        "subpages": [
+            {
+                "name": "Property Types",
+                "url": "https://tolet.co.ke/propertyTypes"
+            },
+            {
+                "name": "Property Listings",
+                "url": "https://tolet.co.ke/propertyListings"
+            }
+        ]
+    },
+    "Office Management": {
+        "url": "https://tolet.co.ke/home#idA110",
+        "subpages": [
+            {
+                "name": "Income/Expenditure Accounts",
+                "url": "https://tolet.co.ke/officeExpenditures"
+            },
+            {
+                "name": "Income/Expenditures Report",
+                "url": "https://tolet.co.ke/incomeExpenditure"
+            },
+            {
+                "name": "Bank Deposits/Withdrawals",
+                "url": "https://tolet.co.ke/officeBankTransactions"
+            }
+        ]
+    },
+    "User Manager": {
+        "url": "https://tolet.co.ke/home#idA111",
+        "subpages": [
+            {
+                "name": "All Users",
+                "url": "https://tolet.co.ke/users"
+            },
+            {
+                "name": "Manage User Roles",
+                "url": "https://tolet.co.ke/roles"
+            },
+            {
+                "name": "Audit Trail",
+                "url": "https://tolet.co.ke/auditTrails"
+            }
+        ]
+    },
+    "System Manager": {
+        "url": "https://tolet.co.ke/home#idA112",
+        "subpages": [
+            {
+                "name": "Prospects",
+                "url": "https://tolet.co.ke/prospects"
+            }
+        ]
+    },
+    "Home": {
+        "url": "https://tolet.co.ke/tenant-home",
+        "subpages": []
+    },
+    "Water Billing": {
+        "url": "https://tolet.co.ke/home#idA114",
+        "subpages": [
+            {
+                "name": "Meter Readings",
+                "url": "https://tolet.co.ke/meterReadings"
+            }
+        ]
+    }
+}

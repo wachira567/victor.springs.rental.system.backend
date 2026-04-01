@@ -1,0 +1,99 @@
+{
+    "Dashboard": {
+        "buttons": [
+            "2",
+            "Profile",
+            "Cancel",
+            "\u00d7",
+            "Previous",
+            "1",
+            "PAY NOW",
+            "Sign out",
+            "Confirm Payment Done",
+            "Proceed"
+        ],
+        "table_columns": [
+            "You will be charged",
+            "Sub Total",
+            "VAT"
+        ]
+    },
+    "Dashboard > Analytics Dashboard": {
+        "buttons": [
+            "2",
+            "Profile",
+            "Cancel",
+            "\u00d7",
+            "Previous",
+            "1",
+            "PAY NOW",
+            "Sign out",
+            "Confirm Payment Done",
+            "Proceed"
+        ],
+        "table_columns": [
+            "You will be charged",
+            "Sub Total",
+            "VAT"
+        ]
+    },
+    "Configurations": {
+        "buttons": [
+            "2",
+            "Profile",
+            "Cancel",
+            "\u00d7",
+            "Previous",
+            "1",
+            "PAY NOW",
+            "Sign out",
+            "Confirm Payment Done",
+            "Proceed"
+        ],
+        "table_columns": [
+            "You will be charged",
+            "Sub Total",
+            "VAT"
+        ]
+    },
+    "Configurations > Attributes": {
+        "buttons": [
+            "Export",
+            "Print",
+            "Profile",
+            "Create",
+            "Reload",
+            "delete",
+            "Cancel",
+            "Reset",
+            "\u00d7",
+            "Save",
+            "edit",
+            "Add New",
+            "No",
+            "Sign out"
+        ],
+        "table_columns": [
+            "Action",
+            "Name"
+        ]
+    },
+    "Configurations > Property Expenses": {
+        "buttons": [
+            "Profile",
+            "delete",
+            "Save",
+            "Cancel",
+            "\u00d7",
+            "edit",
+            "Add New",
+            "No",
+            "Sign out",
+            "Yes"
+        ],
+        "table_columns": [
+            "Action",
+            "Name"
+        ]
+    }
+}

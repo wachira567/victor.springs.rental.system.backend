@@ -83,3 +83,35 @@ def require_role(allowed_roles: list):
             )
         return current_user
     return role_checker
+
+def require_permission(permission_id: str):
+    """Dependency to check if current user has a specific granular permission"""
+    def permission_checker(current_user: User = Depends(get_current_user)):
+        # Super admin always has access
+        if current_user.role == 'super_admin':
+            return current_user
+        
+        # If no explicit permissions set, use default role-based logic
+        if not current_user.permissions:
+            if current_user.role == 'admin':
+                # Admins get everything except system-level stuff by default
+                if permission_id in ['users', 'audit_logs']:
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail=f"Missing permission: {permission_id}"
+                    )
+                return current_user
+            # Other roles get nothing by default unless explicit permissions added
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Missing permission: {permission_id}"
+            )
+            
+        # Check explicit permissions list
+        if permission_id not in current_user.permissions:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Missing permission: {permission_id}"
+            )
+        return current_user
+    return permission_checker
