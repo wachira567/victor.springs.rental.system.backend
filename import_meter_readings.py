@@ -1,138 +1,99 @@
-"""
-Meter Readings Import Script (retry)
-=====================================
-Re-imports only meter readings since the main import already completed
-landlords, properties, tenants, leases, and bills/invoices.
-"""
-
 import csv
-import os
 import sys
+import os
 from datetime import datetime
-from decimal import Decimal, InvalidOperation
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-
-from sqlalchemy.orm import Session
-from database import engine, SessionLocal, Base
+# Set up environment
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+from database import SessionLocal
 import models
 
-CSV_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
-
-def safe_decimal(value, default=Decimal("0.00")):
-    if not value or value.strip() == "":
-        return default
-    try:
-        cleaned = value.strip().replace(",", "").replace(" ", "")
-        return Decimal(cleaned)
-    except (InvalidOperation, ValueError):
-        return default
-
-def safe_int(value, default=0):
-    if not value or value.strip() == "":
-        return default
-    try:
-        return int(float(value.strip().replace(",", "")))
-    except (ValueError, TypeError):
-        return default
-
-def safe_date(value, default=None):
-    if not value or value.strip() == "":
-        return default
-    value = value.strip()
-    for fmt in ["%Y-%m-%d", "%b %d, %Y", "%B %d, %Y", "%d/%m/%Y"]:
-        try:
-            return datetime.strptime(value, fmt).date()
-        except ValueError:
-            continue
-    return default
-
-def main():
-    print("=" * 60)
-    print("🔢 METER READINGS IMPORT (RETRY)")
-    print("=" * 60)
-
-    filepath = os.path.join(CSV_DIR, "meter_readings.csv")
-    if not os.path.exists(filepath):
-        print("  [SKIP] meter_readings.csv not found")
-        return
-
+def import_meter_readings(csv_path):
+    print(f"Importing meter readings from {csv_path}...")
     db = SessionLocal()
-    imported = 0
-    skipped = 0
-
+    
     try:
-        with open(filepath, "r", encoding="utf-8-sig") as f:
+        with open(csv_path, 'r', encoding='utf-8') as f:
+            # Format: ID, PropertyName, UnitName, Prev, Current, Cons, Rate, Total, Date
             reader = csv.reader(f)
+            
+            imported_count = 0
+            skipped_count = 0
+            
             for row in reader:
-                if len(row) < 9:
-                    skipped += 1
+                if not row or len(row) < 9:
                     continue
-
-                property_name = row[1].strip()
-                house_number = row[2].strip()
-                prev_reading = row[3].strip()
-                current_reading = row[4].strip()
-                units_consumed = safe_int(row[5])
-                rate = safe_decimal(row[6])
-                amount = safe_decimal(row[7])
-                reading_date = safe_date(row[8])
-
-                if not property_name or not house_number:
-                    skipped += 1
+                    
+                # Parse columns
+                try:    
+                    property_name = row[1].strip()
+                    unit_number = row[2].strip()
+                    prev_reading = float(row[3])
+                    curr_reading = float(row[4])
+                    consumption = float(row[5])
+                    rate = float(row[6])
+                    total = float(row[7])
+                    date_str = row[8].strip()
+                    
+                    if not date_str or not unit_number:
+                        continue
+                        
+                    reading_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+                except ValueError:
+                    # Skip header or malformed rows
                     continue
-
-                prop = db.query(models.Property).filter(models.Property.name == property_name).first()
-                if not prop:
-                    skipped += 1
-                    continue
-
-                unit = db.query(models.Unit).filter(
-                    models.Unit.property_id == prop.id,
-                    models.Unit.unit_number == house_number
-                ).first()
+                
+                # Find matching unit
+                unit = db.query(models.Unit).filter(models.Unit.unit_number == unit_number).first()
                 if not unit:
-                    skipped += 1
+                    print(f"Skipping reading for unknown unit: {unit_number}")
+                    skipped_count += 1
                     continue
-
-                lease = db.query(models.Lease).filter(models.Lease.unit_id == unit.id).first()
-                if not lease:
-                    skipped += 1
-                    continue
-
-                invoice = models.Invoice(
-                    lease_id=lease.id,
-                    billing_period=reading_date or datetime.now().date(),
-                    type=f"Water (Meter: {prev_reading}->{current_reading}, {units_consumed} units @{rate})",
-                    amount=amount,
-                    amount_paid=Decimal("0.00"),
-                    is_paid=False,
-                )
-                db.add(invoice)
-                imported += 1
-
-                if imported % 500 == 0:
-                    db.commit()
-                    print(f"  ... committed {imported} meter reading invoices so far")
-
-        db.commit()
-        print(f"\n✅ Imported {imported} meter reading invoices (skipped {skipped})")
-        
-        # Print final summary
-        print("\n📊 Final Database Summary:")
-        print(f"   Landlords:  {db.query(models.Landlord).count()}")
-        print(f"   Properties: {db.query(models.Property).count()}")
-        print(f"   Units:      {db.query(models.Unit).count()}")
-        print(f"   Tenants:    {db.query(models.Tenant).count()}")
-        print(f"   Leases:     {db.query(models.Lease).count()}")
-        print(f"   Invoices:   {db.query(models.Invoice).count()}")
-
+                    
+                # Check if this reading already exists to prevent duplicates
+                existing = db.query(models.MeterReading).filter(
+                    models.MeterReading.unit_id == unit.id,
+                    models.MeterReading.reading_date == reading_date
+                ).first()
+                
+                if not existing:
+                    # Some IDs might be missing or out of order, try parsing column 0
+                    try:
+                        record_id = int(row[0])
+                    except ValueError:
+                        record_id = None
+                        
+                    new_reading = models.MeterReading(
+                        id=record_id, # Can be None if malformed, DB will auto-increment
+                        unit_id=unit.id,
+                        previous_reading=prev_reading,
+                        current_reading=curr_reading,
+                        consumption=consumption,
+                        rate=rate,
+                        total_charge=total,
+                        reading_date=reading_date
+                    )
+                    db.add(new_reading)
+                    imported_count += 1
+                    
+                    # Commit in batches of 100
+                    if imported_count % 100 == 0:
+                        db.commit()
+                        print(f"Imported {imported_count} readings...")
+                        
+            # Final commit
+            db.commit()
+            print(f"Import complete! Imported: {imported_count}. Skipped: {skipped_count}.")
+            
     except Exception as e:
         db.rollback()
-        print(f"\n❌ ERROR: {e}")
-        raise
+        print(f"Error during import: {e}")
     finally:
         db.close()
 
 if __name__ == "__main__":
-    main()
+    csv_file = "../Web scrapping data/meter_readings.csv"
+    if os.path.exists(csv_file):
+        import_meter_readings(csv_file)
+    else:
+        print(f"File not found: {csv_file}")

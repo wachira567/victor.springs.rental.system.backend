@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, HTTPException
 from fastapi.responses import Response
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, extract, and_
@@ -895,3 +895,170 @@ def get_revenue_report(
         )
 
     return {"data": result, "total": total, "page": page, "limit": limit}
+
+
+# -------------------------------------------------------------------
+# 1. TENANT REPORTS
+# -------------------------------------------------------------------
+@router.get("/tenant-statement/{tenant_id}")
+def get_tenant_statement(
+    tenant_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.require_permission("reports"))
+):
+    """Detailed ledger for a single tenant."""
+    tenant = db.query(models.Tenant).filter(models.Tenant.id == tenant_id).first()
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+
+    leases = db.query(models.Lease).filter(models.Lease.tenant_id == tenant_id).all()
+    lease_ids = [l.id for l in leases]
+
+    # Get all invoices (Debits)
+    invoices = db.query(models.Invoice).filter(models.Invoice.lease_id.in_(lease_ids)).all()
+    # Get all payments (Credits)
+    payments = db.query(models.Payment).filter(models.Payment.lease_id.in_(lease_ids)).all()
+
+    ledger = []
+    for inv in invoices:
+        ledger.append({
+            "date": inv.billing_period,
+            "description": f"Invoice: {inv.type}",
+            "debit": float(inv.amount),
+            "credit": 0.0,
+            "type": "INVOICE",
+            "ref": str(inv.id)
+        })
+    for pay in payments:
+        ledger.append({
+            "date": pay.payment_date.date() if isinstance(pay.payment_date, datetime) else pay.payment_date,
+            "description": f"Payment: {pay.payment_method}",
+            "debit": 0.0,
+            "credit": float(pay.amount),
+            "type": "PAYMENT",
+            "ref": pay.reference_number
+        })
+
+    # Sort chronologically to calculate running balance
+    ledger.sort(key=lambda x: x["date"])
+    
+    balance = 0.0
+    for entry in ledger:
+        balance += (entry["debit"] - entry["credit"])
+        entry["balance"] = balance
+
+    return {
+        "tenant_name": tenant.full_name,
+        "phone": tenant.phone_number,
+        "statement": ledger,
+        "current_balance": balance
+    }
+
+
+@router.get("/advance-payments")
+def get_advance_payments(db: Session = Depends(get_db)):
+    """Tenants who have paid more than their invoiced amounts."""
+    # Find leases where total payments > total invoice amounts
+    active_leases = db.query(models.Lease).options(joinedload(models.Lease.tenant), joinedload(models.Lease.unit)).filter(models.Lease.status == "ACTIVE").all()
+    
+    advances = []
+    for lease in active_leases:
+        total_invoiced = db.query(func.sum(models.Invoice.amount)).filter(models.Invoice.lease_id == lease.id).scalar() or 0
+        total_paid = db.query(func.sum(models.Payment.amount)).filter(models.Payment.lease_id == lease.id).scalar() or 0
+        
+        if total_paid > total_invoiced:
+            advances.append({
+                "tenant_name": lease.tenant.full_name if lease.tenant else "N/A",
+                "unit": lease.unit.unit_number if lease.unit else "N/A",
+                "advance_amount": float(total_paid - total_invoiced)
+            })
+    return advances
+
+
+# -------------------------------------------------------------------
+# 2. FINANCIAL & COLLECTION REPORTS
+# -------------------------------------------------------------------
+@router.get("/daily-collection")
+def get_daily_collections(
+    start_date: date,
+    end_date: date,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.require_permission("reports"))
+):
+    """Daily summary of payments received."""
+    payments = (
+        db.query(
+            func.date(models.Payment.payment_date).label("pay_date"),
+            models.Payment.payment_method,
+            func.sum(models.Payment.amount).label("total_collected")
+        )
+        .filter(func.date(models.Payment.payment_date) >= start_date)
+        .filter(func.date(models.Payment.payment_date) <= end_date)
+        .group_by(func.date(models.Payment.payment_date), models.Payment.payment_method)
+        .order_by(func.date(models.Payment.payment_date).desc())
+        .all()
+    )
+    return [{"date": str(p.pay_date), "method": p.payment_method, "amount": float(p.total_collected)} for p in payments]
+
+
+@router.get("/commissions")
+def get_commission_report(
+    month: int,
+    year: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.require_permission("reports"))
+):
+    """Calculates management commissions earned by Victor Springs per property."""
+    properties = db.query(models.Property).all()
+    report = []
+    
+    total_commission_all = 0.0
+    for prop in properties:
+        # Sum payments made to units in this property during the specific month
+        collected = (
+            db.query(func.sum(models.Payment.amount))
+            .join(models.Lease)
+            .join(models.Unit)
+            .filter(
+                models.Unit.property_id == prop.id,
+                extract('month', models.Payment.payment_date) == month,
+                extract('year', models.Payment.payment_date) == year
+            )
+            .scalar() or 0
+        )
+        
+        rate = float(prop.management_commission_rate or 0) / 100
+        commission = float(collected) * rate
+        total_commission_all += commission
+        
+        if collected > 0:
+            report.append({
+                "property_name": prop.name,
+                "collection_amount": float(collected),
+                "commission_rate_percent": float(prop.management_commission_rate or 0),
+                "commission_earned": commission
+            })
+            
+    return {"month": month, "year": year, "total_earned": total_commission_all, "breakdown": report}
+
+
+# -------------------------------------------------------------------
+# 3. PROPERTY & UTILITY REPORTS
+# -------------------------------------------------------------------
+@router.get("/vacant-units")
+def get_vacant_units_report(db: Session = Depends(get_db)):
+    """Detailed view of all vacant units and potential lost revenue."""
+    vacant = db.query(models.Unit).options(joinedload(models.Unit.property)).filter(models.Unit.is_vacant == True).all()
+    
+    result = []
+    potential_revenue = 0.0
+    for v in vacant:
+        potential_revenue += float(v.market_rent)
+        result.append({
+            "property_name": v.property.name if v.property else "N/A",
+            "unit_number": v.unit_number,
+            "unit_type": v.unit_type,
+            "market_rent": float(v.market_rent)
+        })
+        
+    return {"total_vacant": len(vacant), "potential_lost_revenue": potential_revenue, "units": result}
