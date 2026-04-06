@@ -126,6 +126,7 @@ def delete_user(user_id: int,
         # But for this system let's allow it as long as it's not self
         pass
 
-    db.delete(user_to_delete)
+    # Soft delete
+    user_to_delete.is_active = False
     db.commit()
-    return {"message": "User deleted successfully"}
+    return {"message": "User terminated successfully"}

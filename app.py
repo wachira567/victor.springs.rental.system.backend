@@ -1,7 +1,8 @@
 import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from routers import auth_routes, core_routes, sms_routes, report_routes, user_routes, config_routes
+from routers import auth_routes, core_routes, sms_routes, report_routes, user_routes, config_routes, whatsapp_routes, reminders_routes
+from scheduler import start_scheduler, shutdown_scheduler
 
 from audit import AuditTrailMiddleware, setup_audit_logging
 from database import engine
@@ -21,12 +22,22 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.on_event("startup")
+async def startup_event():
+    start_scheduler()
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    shutdown_scheduler()
+
 app.include_router(auth_routes.router)
 app.include_router(core_routes.router)
 app.include_router(sms_routes.router)
 app.include_router(report_routes.router)
 app.include_router(user_routes.router)
 app.include_router(config_routes.router)
+app.include_router(whatsapp_routes.router)
+app.include_router(reminders_routes.router)
 
 @app.get("/")
 def root():

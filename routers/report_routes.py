@@ -188,3 +188,91 @@ def get_landlord_statement(
         "period": f"{start_date} to {end_date}",
         "data": statements
     }
+
+# -------------------------------------------------------------------
+# 3. FINANCIAL & COLLECTION REPORTS
+# -------------------------------------------------------------------
+@router.get("/daily-collection")
+def get_daily_collections(
+    start_date: date,
+    end_date: date,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.require_permission("reports"))
+):
+    """Daily summary of payments received."""
+    payments = (
+        db.query(
+            func.date(models.Payment.payment_date).label("pay_date"),
+            models.Payment.payment_method,
+            func.sum(models.Payment.amount).label("total_collected")
+        )
+        .filter(func.date(models.Payment.payment_date) >= start_date)
+        .filter(func.date(models.Payment.payment_date) <= end_date)
+        .group_by(func.date(models.Payment.payment_date), models.Payment.payment_method)
+        .order_by(func.date(models.Payment.payment_date).desc())
+        .all()
+    )
+    return [{"date": str(p.pay_date), "method": p.payment_method, "amount": float(p.total_collected)} for p in payments]
+
+
+@router.get("/commissions")
+def get_commission_report(
+    month: int,
+    year: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.require_permission("reports"))
+):
+    """Calculates management commissions earned by Victor Springs per property."""
+    properties = db.query(models.Property).all()
+    report = []
+    
+    total_commission_all = 0.0
+    for prop in properties:
+        # Sum payments made to units in this property during the specific month
+        collected = (
+            db.query(func.sum(models.Payment.amount))
+            .join(models.Lease)
+            .join(models.Unit)
+            .filter(
+                models.Unit.property_id == prop.id,
+                extract('month', models.Payment.payment_date) == month,
+                extract('year', models.Payment.payment_date) == year
+            )
+            .scalar() or 0
+        )
+        
+        rate = float(prop.management_commission_rate or 0) / 100
+        commission = float(collected) * rate
+        total_commission_all += commission
+        
+        if collected > 0:
+            report.append({
+                "property_name": prop.name,
+                "collection_amount": float(collected),
+                "commission_rate_percent": float(prop.management_commission_rate or 0),
+                "commission_earned": commission
+            })
+            
+    return {"month": month, "year": year, "total_earned": total_commission_all, "breakdown": report}
+
+
+# -------------------------------------------------------------------
+# 4. PROPERTY & UTILITY REPORTS
+# -------------------------------------------------------------------
+@router.get("/vacant-units")
+def get_vacant_units_report(db: Session = Depends(get_db)):
+    """Detailed view of all vacant units and potential lost revenue."""
+    vacant = db.query(models.Unit).options(joinedload(models.Unit.property)).filter(models.Unit.is_vacant == True).all()
+    
+    result = []
+    potential_revenue = 0.0
+    for v in vacant:
+        potential_revenue += float(v.market_rent)
+        result.append({
+            "property_name": v.property.name if v.property else "N/A",
+            "unit_number": v.unit_number,
+            "unit_type": v.unit_type,
+            "market_rent": float(v.market_rent)
+        })
+        
+    return {"total_vacant": len(vacant), "potential_lost_revenue": potential_revenue, "units": result}

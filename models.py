@@ -112,6 +112,7 @@ class Tenant(Base, AuditMixin):
     gender = Column(String(20))
     emergency_contact = Column(String(150))
     user_id = Column(Integer, ForeignKey('users.id'), nullable=True)
+    is_active = Column(Boolean, default=True)
 
     leases = relationship("Lease", back_populates="tenant")
 
@@ -211,11 +212,11 @@ class MeterReading(Base, AuditMixin):
 
     id = Column(Integer, primary_key=True, index=True)
     unit_id = Column(Integer, ForeignKey('units.id'), nullable=False)
-    previous_reading = Column(Numeric(10, 2), nullable=False)
-    current_reading = Column(Numeric(10, 2), nullable=False)
-    consumption = Column(Numeric(10, 2), nullable=False)
+    previous_reading = Column(Numeric(14, 2), nullable=False)
+    current_reading = Column(Numeric(14, 2), nullable=False)
+    consumption = Column(Numeric(14, 2), nullable=False)
     rate = Column(Numeric(10, 2), nullable=False)
-    total_charge = Column(Numeric(10, 2), nullable=False)
+    total_charge = Column(Numeric(14, 2), nullable=False)
     reading_date = Column(Date, nullable=False)
 
     unit = relationship("Unit")
@@ -260,3 +261,84 @@ class Bank(Base, AuditMixin):
     bank_name_id = Column(Integer, ForeignKey('bank_names.id'), nullable=False)
 
     bank_name = relationship("BankName")
+
+class WhatsAppSession(Base, AuditMixin):
+    __tablename__ = "whatsapp_sessions"
+    id = Column(Integer, primary_key=True, index=True)
+    phone_number = Column(String(50), nullable=False, index=True)
+    user_id = Column(Integer, nullable=True) # Refers to Landlord/Tenant/User id
+    user_role = Column(String(50), nullable=False) # 'tenant', 'landlord', 'admin', 'super_admin'
+    user_name = Column(String(150), nullable=True)
+    current_state = Column(String(50), nullable=False, default="MAIN_MENU")
+    context_data = Column(JSON, nullable=True) # For keeping track of pagination or specific actions
+    last_interaction_at = Column(DateTime, default=datetime.utcnow)
+
+    messages = relationship("WhatsAppMessage", back_populates="session", cascade="all, delete-orphan")
+
+class WhatsAppMessage(Base, AuditMixin):
+    __tablename__ = "whatsapp_messages"
+    id = Column(Integer, primary_key=True, index=True)
+    session_id = Column(Integer, ForeignKey('whatsapp_sessions.id'), nullable=False)
+    sender = Column(String(50), nullable=False) # 'user', 'bot', 'agent'
+    content = Column(Text, nullable=False)
+    timestamp = Column(DateTime, default=datetime.utcnow)
+
+    session = relationship("WhatsAppSession", back_populates="messages")
+
+class WhatsAppConfig(Base, AuditMixin):
+    __tablename__ = "whatsapp_config"
+    id = Column(Integer, primary_key=True, index=True)
+    is_enabled = Column(Boolean, default=True)
+    allow_tenant_access = Column(Boolean, default=True)
+    allow_landlord_access = Column(Boolean, default=True)
+    tenant_allowed_features = Column(JSON, default=list) # e.g. ["bills", "arrears", "payments", "agent_chat"]
+    landlord_allowed_features = Column(JSON, default=list) # e.g. ["stats", "remittances", "agent_chat"]
+    inactivity_timeout_minutes = Column(Integer, default=5)
+
+class Note(Base, AuditMixin):
+    __tablename__ = "notes"
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String(255), nullable=False)
+    content = Column(Text, nullable=False)
+    date = Column(Date, nullable=False) # Context date for calendar
+    is_deleted = Column(Boolean, default=False)
+    is_public = Column(Boolean, default=False) # Private by default; admin/super_admin can set public
+    created_by_id = Column(Integer, ForeignKey("users.id"), nullable=True) # Owner of the note
+
+    created_by = relationship("User", foreign_keys=[created_by_id])
+    reminders = relationship("Reminder", back_populates="note", cascade="all, delete-orphan")
+
+class Reminder(Base, AuditMixin):
+    __tablename__ = "reminders"
+    id = Column(Integer, primary_key=True, index=True)
+    note_id = Column(Integer, ForeignKey("notes.id"), nullable=True)
+    target_date = Column(DateTime, nullable=False)
+    importance_color = Column(String(50), default="blue") # e.g., red, orange, green
+    target_phone = Column(String(20), nullable=True)
+    platform = Column(String(20), default="sms") # sms or whatsapp
+    is_active = Column(Boolean, default=True) # Turn off reminder if done
+
+    note = relationship("Note", back_populates="reminders")
+
+class MaintenanceRequest(Base, AuditMixin):
+    __tablename__ = "maintenance_requests"
+    id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=True)
+    contractor_id = Column(Integer, ForeignKey("users.id"), nullable=True) # Assume contractor is user role 'worker' or 'contractor'
+    task_details = Column(Text, nullable=False)
+    status = Column(String(50), default="PENDING") # PENDING, IN_PROGRESS, COMPLETED
+    scheduled_date = Column(DateTime, nullable=True)
+    cost = Column(Numeric(10, 2), default=0.00)
+    landlord_deduction = Column(Numeric(10, 2), default=0.00)
+
+    tenant = relationship("Tenant", foreign_keys=[tenant_id])
+    contractor = relationship("User", foreign_keys=[contractor_id])
+
+class ScheduledMessage(Base, AuditMixin):
+    __tablename__ = "scheduled_messages"
+    id = Column(Integer, primary_key=True, index=True)
+    dispatch_time = Column(DateTime, nullable=False)
+    message_payload = Column(Text, nullable=False)
+    platform_type = Column(String(20), default="sms") # sms, whatsapp
+    recipient_phone = Column(String(20), nullable=False)
+    status = Column(String(50), default="PENDING") # PENDING, SENT, FAILED

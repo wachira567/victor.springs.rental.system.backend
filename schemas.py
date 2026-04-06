@@ -445,3 +445,47 @@ class SmsScheduleOut(SmsScheduleCreate):
 class ManualDispatch(BaseModel):
     tenant_ids: List[int]
     message_content: str
+
+# --- WhatsApp ---
+class WhatsAppConfigUpdate(BaseModel):
+    is_enabled: Optional[bool] = None
+    allow_tenant_access: Optional[bool] = None
+    allow_landlord_access: Optional[bool] = None
+    tenant_allowed_features: Optional[List[str]] = None
+    landlord_allowed_features: Optional[List[str]] = None
+    inactivity_timeout_minutes: Optional[int] = None
+
+class WhatsAppConfigOut(BaseModel):
+    id: int
+    is_enabled: bool
+    allow_tenant_access: bool
+    allow_landlord_access: bool
+    tenant_allowed_features: List[str]
+    landlord_allowed_features: List[str]
+    inactivity_timeout_minutes: int
+
+    class Config:
+        from_attributes = True
+
+class WhatsAppMessageOut(BaseModel):
+    id: int
+    session_id: int
+    sender: str
+    content: str
+    timestamp: datetime
+
+    class Config:
+        from_attributes = True
+
+class WhatsAppSessionOut(BaseModel):
+    id: int
+    phone_number: str
+    user_id: Optional[int] = None
+    user_role: str
+    user_name: Optional[str] = None
+    current_state: str
+    last_interaction_at: datetime
+    messages: Optional[List[WhatsAppMessageOut]] = None
+
+    class Config:
+        from_attributes = True

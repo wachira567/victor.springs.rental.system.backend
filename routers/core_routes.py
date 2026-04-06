@@ -451,10 +451,11 @@ def get_tenants(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_user),
 ):
+    from sqlalchemy.orm import selectinload
     tenants = (
         db.query(models.Tenant)
         .options(
-            joinedload(models.Tenant.leases)
+            selectinload(models.Tenant.leases)
             .joinedload(models.Lease.unit)
             .joinedload(models.Unit.property)
         )
@@ -616,9 +617,9 @@ def delete_tenant(
             detail="Cannot delete tenant with active lease. Terminate the lease first.",
         )
 
-    db.delete(tenant)
+    tenant.is_active = False
     db.commit()
-    return {"message": "Tenant deleted successfully"}
+    return {"message": "Tenant logically terminated successfully"}
 
 
 # ==============================================================================
@@ -1756,24 +1757,6 @@ def get_available_periods(
         })
     
     return result
-
-@router.post("/landlord-remittances", response_model=schemas.LandlordRemittanceOut)
-def create_landlord_remittance(
-    remittance: schemas.LandlordRemittanceCreate,
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.require_role(["super_admin", "admin"])),
-):
-    new_remittance = models.LandlordRemittance(**remittance.model_dump())
-    if not new_remittance.date:
-        new_remittance.date = datetime.utcnow().date()
-    
-    # Add audit info
-    new_remittance.created_by_id = current_user.id
-    
-    db.add(new_remittance)
-    db.commit()
-    db.refresh(new_remittance)
-    return new_remittance
 
 
 # ==============================================================================
