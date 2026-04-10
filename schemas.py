@@ -105,6 +105,7 @@ class TenantCreate(BaseModel):
     email: Optional[EmailStr] = None
     emergency_contact: Optional[str] = Field(None, max_length=150)
     gender: Optional[str] = None
+    agreement_document_url: Optional[str] = None
 
 
 class TenantOut(BaseModel):
@@ -118,6 +119,7 @@ class TenantOut(BaseModel):
     user_id: Optional[int] = None
     current_unit: Optional[str] = None
     current_property: Optional[str] = None
+    agreement_document_url: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -206,6 +208,17 @@ class InvoiceOut(BaseModel):
 
 
 # --- Configuration Schemas ---
+class SystemSettingUpdate(BaseModel):
+    setting_value: str
+
+class SystemSettingOut(BaseModel):
+    id: int
+    setting_key: str
+    setting_value: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
 class AttributeCreate(BaseModel):
     name: str = Field(..., max_length=100)
 
@@ -300,6 +313,15 @@ class PaymentOut(BaseModel):
     class Config:
         from_attributes = True
 
+
+class BulkPaymentAllocation(BaseModel):
+    lease_id: int
+    amount: Decimal
+
+class BulkPaymentCreate(BaseModel):
+    payment_method: str = Field(..., max_length=50)
+    reference_number: str = Field(..., max_length=100)
+    allocations: List[BulkPaymentAllocation]
 
 # --- Expenditures ---
 class ExpenditureCreate(BaseModel):

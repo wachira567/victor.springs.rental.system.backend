@@ -16,6 +16,11 @@ WHATSAPP_API_URL = f"https://graph.facebook.com/{GRAPH_VERSION}"
 WHATSAPP_TOKEN = os.environ.get("WHATSAPP_NUMBER_1_TOKEN", "")
 WHATSAPP_PHONE_ID = os.environ.get("WHATSAPP_NUMBER_1_ID", "")
 
+def get_system_name(db: Session) -> str:
+    """Fetch the dynamic system name from settings."""
+    setting = db.query(models.SystemSetting).filter(models.SystemSetting.setting_key == 'system_name').first()
+    return setting.setting_value if setting and setting.setting_value else 'VictorSprings'
+
 def get_whatsapp_config(db: Session) -> models.WhatsAppConfig:
     config = db.query(models.WhatsAppConfig).first()
     if not config:
@@ -90,6 +95,7 @@ def identify_user(phone: str, db: Session) -> Tuple[Optional[str], Optional[int]
 
 def handle_incoming_message(phone: str, message: str, db: Session):
     config = get_whatsapp_config(db)
+    system_name = get_system_name(db)
     if not config.is_enabled:
         return
         
@@ -164,12 +170,12 @@ def handle_incoming_message(phone: str, message: str, db: Session):
             session.current_state = "AGENT_CHAT"
             reply_text = "An agent has been notified and will be with you shortly. Type EXIT to leave this chat."
         else:
-            reply_text = "Welcome to VictorSprings!\n\n" + get_main_menu(session.user_role, config)
+            reply_text = f"Welcome to {system_name}!\n\n" + get_main_menu(session.user_role, config)
     
     else:
         # Default fallback
         session.current_state = "MAIN_MENU"
-        reply_text = "I didn't understand that.\n\n" + get_main_menu(session.user_role, config)
+        reply_text = f"I didn't understand that.\n\n" + get_main_menu(session.user_role, config)
 
     if reply_text:
         send_whatsapp_message(cleaned_phone, reply_text)

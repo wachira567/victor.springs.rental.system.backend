@@ -113,6 +113,7 @@ class Tenant(Base, AuditMixin):
     emergency_contact = Column(String(150))
     user_id = Column(Integer, ForeignKey('users.id'), nullable=True)
     is_active = Column(Boolean, default=True)
+    agreement_document_url = Column(String(500), nullable=True)
 
     leases = relationship("Lease", back_populates="tenant")
 
@@ -241,6 +242,12 @@ class Attribute(Base, AuditMixin):
     __tablename__ = "attributes"
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(100), unique=True, nullable=False)
+
+class SystemSetting(Base, AuditMixin):
+    __tablename__ = "system_settings"
+    id = Column(Integer, primary_key=True, index=True)
+    setting_key = Column(String(100), unique=True, nullable=False, index=True)
+    setting_value = Column(String(255), nullable=True)
 
 class ExpenseCategory(Base, AuditMixin):
     __tablename__ = "expense_categories"

@@ -48,64 +48,68 @@ def setup_audit_logging(engine):
     
     @event.listens_for(SessionLocal, 'after_flush')
     def receive_after_flush(session, flush_context):
-        # Determine the user_id if we have access to request context
-        user_id = current_user_id.get()
-        
-        # We log changes here
-        logs = []
-        
-        for obj in session.new:
-            if hasattr(obj, '__tablename__') and obj.__tablename__ != 'audit_logs':
-                state = obj.__dict__.copy()
-                state.pop('_sa_instance_state', None)
-                # Convert non-serializable objects
-                state = {k: str(v) for k, v in state.items()}
-                
-                logs.append(AuditLog(
-                    action='INSERT',
-                    table_name=obj.__tablename__,
-                    record_id=getattr(obj, 'id', None), 
-                    user_id=user_id,
-                    new_data=state
-                ))
-                
-        for obj in session.dirty:
-            if hasattr(obj, '__tablename__') and obj.__tablename__ != 'audit_logs':
-                state = obj.__dict__.copy()
-                state.pop('_sa_instance_state', None)
-                state = {k: str(v) for k, v in state.items()}
-                
-                # Try to get old state from history
-                from sqlalchemy.orm.attributes import get_history
-                old_state = {}
-                for attr in state.keys():
-                    hist = get_history(obj, attr)
-                    if hist.deleted:
-                        old_state[attr] = str(hist.deleted[0])
-                        
-                logs.append(AuditLog(
-                    action='UPDATE',
-                    table_name=obj.__tablename__,
-                    record_id=getattr(obj, 'id', None),
-                    user_id=user_id,
-                    old_data=old_state,
-                    new_data=state
-                ))
-                
-        for obj in session.deleted:
-            if hasattr(obj, '__tablename__') and obj.__tablename__ != 'audit_logs':
-                state = obj.__dict__.copy()
-                state.pop('_sa_instance_state', None)
-                state = {k: str(v) for k, v in state.items()}
-                
-                logs.append(AuditLog(
-                    action='DELETE',
-                    table_name=obj.__tablename__,
-                    record_id=getattr(obj, 'id', None),
-                    user_id=user_id,
-                    old_data=state
-                ))
-                
-        if logs:
-            session.add_all(logs)
+        try:
+            # Determine the user_id if we have access to request context
+            user_id = current_user_id.get()
+            
+            # We log changes here
+            logs = []
+            
+            for obj in session.new:
+                if hasattr(obj, '__tablename__') and obj.__tablename__ != 'audit_logs':
+                    state = obj.__dict__.copy()
+                    state.pop('_sa_instance_state', None)
+                    # Convert non-serializable objects
+                    state = {k: str(v) for k, v in state.items()}
+                    
+                    logs.append(AuditLog(
+                        action='INSERT',
+                        table_name=obj.__tablename__,
+                        record_id=getattr(obj, 'id', None), 
+                        user_id=user_id,
+                        new_data=state
+                    ))
+                    
+            for obj in session.dirty:
+                if hasattr(obj, '__tablename__') and obj.__tablename__ != 'audit_logs':
+                    state = obj.__dict__.copy()
+                    state.pop('_sa_instance_state', None)
+                    state = {k: str(v) for k, v in state.items()}
+                    
+                    # Try to get old state from history
+                    from sqlalchemy.orm.attributes import get_history
+                    old_state = {}
+                    for attr in state.keys():
+                        hist = get_history(obj, attr)
+                        if hist.deleted:
+                            old_state[attr] = str(hist.deleted[0])
+                            
+                    logs.append(AuditLog(
+                        action='UPDATE',
+                        table_name=obj.__tablename__,
+                        record_id=getattr(obj, 'id', None),
+                        user_id=user_id,
+                        old_data=old_state,
+                        new_data=state
+                    ))
+                    
+            for obj in session.deleted:
+                if hasattr(obj, '__tablename__') and obj.__tablename__ != 'audit_logs':
+                    state = obj.__dict__.copy()
+                    state.pop('_sa_instance_state', None)
+                    state = {k: str(v) for k, v in state.items()}
+                    
+                    logs.append(AuditLog(
+                        action='DELETE',
+                        table_name=obj.__tablename__,
+                        record_id=getattr(obj, 'id', None),
+                        user_id=user_id,
+                        old_data=state
+                    ))
+                    
+            if logs:
+                session.add_all(logs)
+        except Exception as e:
+            print(f"Audit log error: {e}")
+
 

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Response
+from fastapi import APIRouter, Depends, HTTPException, status, Response, UploadFile, File
 from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 from typing import List, Optional
@@ -551,6 +551,16 @@ def create_tenant(
         raise HTTPException(
             status_code=400, detail="Tenant with this National ID already exists"
         )
+        
+    db_tenant_phone = (
+        db.query(models.Tenant)
+        .filter(models.Tenant.phone_number == tenant.phone_number)
+        .first()
+    )
+    if db_tenant_phone:
+        raise HTTPException(
+            status_code=400, detail="Tenant with this phone number already exists"
+        )
 
     new_tenant = models.Tenant(**tenant.model_dump())
     new_tenant.created_by_id = current_user.id
@@ -585,6 +595,20 @@ def update_tenant(
             status_code=400, detail="Tenant with this National ID already exists"
         )
 
+    # Check for duplicate phone number
+    existing_phone = (
+        db.query(models.Tenant)
+        .filter(
+            models.Tenant.phone_number == tenant_data.phone_number,
+            models.Tenant.id != tenant_id,
+        )
+        .first()
+    )
+    if existing_phone:
+        raise HTTPException(
+            status_code=400, detail="Tenant with this phone number already exists"
+        )
+
     for key, value in tenant_data.model_dump().items():
         setattr(tenant, key, value)
     tenant.updated_by_id = current_user.id
@@ -592,6 +616,69 @@ def update_tenant(
     db.commit()
     db.refresh(tenant)
     return {"message": "Tenant updated successfully", "id": tenant.id}
+
+
+@router.post("/tenants/{tenant_id}/document")
+def upload_tenant_document(
+    tenant_id: int,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.require_role(["super_admin", "admin"])),
+):
+    import os
+    try:
+        import cloudinary
+        import cloudinary.uploader
+    except ImportError:
+        raise HTTPException(status_code=500, detail="Cloudinary not configured. Please add cloudinary to Pipfile.")
+    
+    cloud_name = os.environ.get("CLOUDINARY_CLOUD_NAME", "")
+    api_key = os.environ.get("CLOUDINARY_API_KEY", "")
+    api_secret = os.environ.get("CLOUDINARY_API_SECRET", "")
+    
+    if not cloud_name or not api_key or not api_secret:
+        raise HTTPException(status_code=500, detail="Cloudinary credentials not configured in environment variables.")
+    
+    cloudinary.config(
+        cloud_name=cloud_name,
+        api_key=api_key,
+        api_secret=api_secret
+    )
+    
+    tenant = db.query(models.Tenant).filter(models.Tenant.id == tenant_id).first()
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+    
+    tenant_name = tenant.full_name.replace(" ", "_")
+    lease = db.query(models.Lease).filter(models.Lease.tenant_id == tenant_id, models.Lease.status == "ACTIVE").first()
+    unit_info = ""
+    if lease and lease.unit:
+        unit_info = f"_{lease.unit.unit_number}"
+    
+    from datetime import datetime
+    date_str = datetime.now().strftime("%Y%m%d")
+    
+    public_id = f"{tenant_name}{unit_info}_{date_str}"
+    
+    try:
+        result = cloudinary.uploader.upload(
+            file.file,
+            public_id=public_id,
+            folder="tenant_agreements",
+            resource_type="auto"
+        )
+        
+        tenant.agreement_document_url = result.get("secure_url")
+        db.commit()
+        db.refresh(tenant)
+        
+        return {
+            "message": "Document uploaded successfully",
+            "url": result.get("secure_url"),
+            "tenant_id": tenant.id
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
 
 
 @router.delete("/tenants/{tenant_id}")
@@ -1219,6 +1306,18 @@ def create_payment(
         auth.require_role(["super_admin", "admin", "tenant"])
     ),
 ):
+    # Explicit uniqueness check for Payment Reference
+    if payment.reference_number:
+        existing_payment = (
+            db.query(models.Payment)
+            .filter(models.Payment.reference_number == payment.reference_number)
+            .first()
+        )
+        if existing_payment:
+            raise HTTPException(
+                status_code=400, detail=f"Payment reference '{payment.reference_number}' has already been used."
+            )
+
     # record the base payment record
     new_payment = models.Payment(**payment.model_dump())
     new_payment.created_by_id = current_user.id
@@ -1257,6 +1356,72 @@ def create_payment(
     db.commit()
     db.refresh(new_payment)
     return new_payment
+
+
+@router.post(
+    "/payments/bulk", status_code=status.HTTP_201_CREATED
+)
+def create_bulk_payment(
+    bulk_payment: schemas.BulkPaymentCreate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(
+        auth.require_role(["super_admin", "admin"])
+    ),
+):
+    # Explicit uniqueness check for Payment Reference across ALL chunks
+    if bulk_payment.reference_number:
+        existing_payment = (
+            db.query(models.Payment)
+            .filter(models.Payment.reference_number == bulk_payment.reference_number)
+            .first()
+        )
+        if existing_payment:
+            raise HTTPException(
+                status_code=400, detail=f"Payment reference '{bulk_payment.reference_number}' has already been used."
+            )
+
+    created_payments = []
+
+    for alloc in bulk_payment.allocations:
+        if alloc.amount <= 0:
+            continue
+            
+        new_payment = models.Payment(
+            lease_id=alloc.lease_id,
+            amount=alloc.amount,
+            payment_method=bulk_payment.payment_method,
+            reference_number=bulk_payment.reference_number,
+            created_by_id=current_user.id
+        )
+        db.add(new_payment)
+        
+        # Chronological allocation for this specific lease
+        amount_to_allocate = float(alloc.amount)
+        unpaid_invoices = (
+            db.query(models.Invoice)
+            .filter(models.Invoice.lease_id == alloc.lease_id, models.Invoice.is_paid == False)
+            .order_by(models.Invoice.billing_period.asc())
+            .all()
+        )
+
+        for inv in unpaid_invoices:
+            if amount_to_allocate <= 0:
+                break
+
+            current_balance = float(inv.amount) - float(inv.amount_paid)
+            
+            if amount_to_allocate >= current_balance:
+                inv.amount_paid = float(inv.amount)
+                inv.is_paid = True
+                amount_to_allocate -= current_balance
+            else:
+                inv.amount_paid = float(inv.amount_paid) + amount_to_allocate
+                amount_to_allocate = 0
+
+        created_payments.append(new_payment)
+
+    db.commit()
+    return {"message": "Bulk payment allocated successfully", "count": len(created_payments)}
 
 
 # --- Meter Readings ---

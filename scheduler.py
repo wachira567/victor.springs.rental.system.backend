@@ -13,6 +13,7 @@ logger = logging.getLogger(__name__)
 
 def process_scheduled_messages():
     db: Session = SessionLocal()
+    print("Processing scheduled messages...")
     try:
         now = datetime.utcnow()
         # Find messages that are PENDING and dispatch_time is <= now
@@ -72,6 +73,7 @@ scheduler.add_job(process_scheduled_messages, 'interval', minutes=1)
 def start_scheduler():
     scheduler.start()
     logger.info("Background Scheduler Started.")
+    print("Scheduler started - checking if running:", scheduler.running)
 
 def shutdown_scheduler():
     scheduler.shutdown()

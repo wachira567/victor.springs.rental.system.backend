@@ -7,6 +7,40 @@ from database import get_db
 router = APIRouter(prefix="/config", tags=["config"])
 
 
+# --- System Settings ---
+@router.get("/settings", response_model=List[schemas.SystemSettingOut])
+def get_system_settings(
+    db: Session = Depends(get_db)
+):
+    settings = db.query(models.SystemSetting).all()
+    # Default to VictorSprings if not found
+    if not any(s.setting_key == 'system_name' for s in settings):
+        default_name = models.SystemSetting(setting_key='system_name', setting_value='VictorSprings')
+        db.add(default_name)
+        db.commit()
+        db.refresh(default_name)
+        settings.append(default_name)
+    return settings
+
+@router.put("/settings/{setting_key}", response_model=schemas.SystemSettingOut)
+def update_system_setting(
+    setting_key: str,
+    setting_data: schemas.SystemSettingUpdate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.require_role(["super_admin"])),
+):
+    setting = db.query(models.SystemSetting).filter(models.SystemSetting.setting_key == setting_key).first()
+    if not setting:
+        setting = models.SystemSetting(setting_key=setting_key)
+        db.add(setting)
+    
+    setting.setting_value = setting_data.setting_value
+    setting.updated_by_id = current_user.id
+    db.commit()
+    db.refresh(setting)
+    return setting
+
+
 # --- Attributes ---
 @router.get("/attributes", response_model=List[schemas.AttributeOut])
 def get_attributes(

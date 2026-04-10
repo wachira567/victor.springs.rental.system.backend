@@ -98,6 +98,7 @@ def google_login(google_login_data: schemas.GoogleLogin, db: Session = Depends(g
         if not user.is_active:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Account inactive")
             
+        access_token_expires = timedelta(minutes=auth.ACCESS_TOKEN_EXPIRE_MINUTES)
         access_token = auth.create_access_token(
             data={"sub": str(user.id), "role": user.role, "permissions": user.permissions or []}, 
             expires_delta=access_token_expires
