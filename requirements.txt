@@ -5,7 +5,7 @@ annotated-types==0.7.0; python_version >= '3.8'
 anyio==4.5.2; python_version >= '3.8'
 apscheduler==3.11.2; python_version >= '3.8'
 backports.zoneinfo==0.2.1; python_version < '3.9'
-bcrypt>=3.2.2; python_version >= '3.6'
+bcrypt==3.2.2
 certifi==2026.2.25; python_version >= '3.7'
 cffi; python_version >= '3.8'
 charset-normalizer==3.4.7; python_version >= '3.7'
